@@ -96,9 +96,18 @@ class _RegridFromLatLon(torch.nn.Module):
         # TODO add device switching logic (maybe use torch registers for this
         # info)
         long = src.lon.ravel()
+        long_neg = (long < 0).any()  # are there any negative longitudes?
+
         if self.cylinder:
-            long = np.concatenate([long, [360]], axis=-1)
+            long = np.concatenate([long, [180 if long_neg else 360]], axis=-1)
         long_t = torch.from_numpy(long)
+
+        # make sure lon_query is in the same range as long
+        lon_query = torch.from_numpy(lon.ravel())
+        if long_neg:
+            lon_query = (lon_query + 180) % 360 - 180
+        else:
+            lon_query = lon_query % 360
 
         # flip the order latg since bilinear only works with increasing coordinate values
         lat_increasing = src.lat[1] > src.lat[0]
@@ -109,7 +118,7 @@ class _RegridFromLatLon(torch.nn.Module):
             lat_query = -lat_query
             latg_t = -latg_t
 
-        self._bilinear = BilinearInterpolator(long_t, latg_t, y_query=lat_query, x_query=torch.from_numpy(lon.ravel()))
+        self._bilinear = BilinearInterpolator(long_t, latg_t, y_query=lat_query, x_query=lon_query)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # pad z in lon direction

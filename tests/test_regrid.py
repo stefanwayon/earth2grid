@@ -62,9 +62,16 @@ def test_latlon_regridder(with_channels, tmp_path):
 
 
 @pytest.mark.parametrize("with_channels", [True, False])
-def test_healpix_to_lat_lon(with_channels):
+@pytest.mark.parametrize("negative_lons", [True, False])
+def test_healpix_to_lat_lon(with_channels, negative_lons):
     dest = earth2grid.healpix.Grid(level=6, pixel_order=earth2grid.healpix.XY())
-    src = earth2grid.latlon.equiangular_lat_lon_grid(33, 64)
+    if negative_lons:
+        lat = np.linspace(-90, 90, 33)
+        lon = np.linspace(-180, 180, 64, endpoint=False)
+        src = earth2grid.latlon.LatLonGrid(lat, lon)
+    else:
+        src = earth2grid.latlon.equiangular_lat_lon_grid(33, 64)
+
     regrid = earth2grid.get_regridder(src, dest)
 
     def f(lat, lon):
